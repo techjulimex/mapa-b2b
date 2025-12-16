@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Julimex – Północ / Południe (województwa)</title>
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+
+  <style>
+    :root{
+      --north: #2b8a3e;
+      --south: #1c7ed6;
+      --stroke: #212529;
+      --bg: #0b0f14;
+      --panel: rgba(255,255,255,.92);
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+    }
+
+    #map {
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ===== LEGENDA ===== */
+    .legend {
+      position: absolute;
+      z-index: 999;
+      top: 16px;
+      left: 72px;
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      max-width: 240px;
+    }
+
+    .legend h1 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 6px 0;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(0,0,0,.35);
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.06);
+      font-size: 12px;
+      margin-left: 6px;
+    }
+
+    .contact-list {
+      margin: 4px 0 8px 24px;
+      padding: 0;
+      font-size: 12px;
+    }
+
+    /* ===== LOGO ===== */
+    .logo-box {
+      position: absolute;
+      z-index: 999;
+      top: 16px;
+      right: 16px;
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+
+    .logo-box img {
+      max-height: 40px;
+      display: block;
+    }
+
+    /* ===== TOOLTIP ===== */
+    .leaflet-tooltip.custom-tooltip {
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(0,0,0,.12);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.18);
+      padding: 10px 12px;
+      color: #212529;
+    }
+
+    .leaflet-tooltip.custom-tooltip .tt-title {
+      font-weight: 700; /* ✅ POGRUBIONA NAZWA WOJEWÓDZTWA */
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .leaflet-tooltip.custom-tooltip .tt-line {
+      font-size: 12px;
+      line-height: 1.35;
+      white-space: nowrap;
+    }
+    /* Usuń obwódkę focus po kliknięciu na województwo (Leaflet/SVG) */
+.leaflet-container path:focus,
+.leaflet-container svg:focus,
+.leaflet-container .leaflet-interactive:focus {
+  outline: none !important;
+}
+
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <!-- LEGENDA -->
+  <div class="legend">
+    <h1>Julimex - kontakt do opiekuna handlowego</h1>
+
+    <div class="row">
+      <span class="swatch" style="background: var(--north)"></span>
+      <strong>PÓŁNOC</strong>
+    </div>
+    <ul class="contact-list">
+      <p>zachodnio-pomorskie, pomorskie, warmińsko-mazurskie, podlaskie, mazowieckie, kujawsko-pomorskie, wielkopolskie, lubuskie</p>
+      <li>tel. 790 292 986</li>
+      <li>e-mail: i.hubner@julimex.pl</li>
+      <li>Ilona Hubner</li>
+    </ul>
+
+    <div class="row">
+      <span class="swatch" style="background: var(--south)"></span>
+      <strong>POŁUDNIE</strong>
+    </div>
+    <ul class="contact-list">
+      <p>dolnośląskie, łódzkie, opolskie, śląskie, świętokrzyskie, lubelskie, małopolskie, podkarpackie</p>
+      <li>tel. 790 292 984</li>
+      <li>e-mail: k.fijalkowska@julimex.pl</li>
+      <li>Katarzyna Fijałkowska</li>
+    </ul>
+  </div>
+
+  <!-- LOGO -->
+  <div class="logo-box">
+    <img src="assets/julimex-logo.jpeg" alt="Julimex">
+  </div>
+
+  <script>
+    const POLNOC = [
+      "zachodniopomorskie","pomorskie","warminsko-mazurskie","podlaskie",
+      "mazowieckie","kujawsko-pomorskie","wielkopolskie","lubuskie"
+    ];
+
+    const POLUDNIE = [
+      "dolnoslaskie","lodzkie","opolskie","slaskie",
+      "swietokrzyskie","lubelskie","malopolskie","podkarpackie"
+    ];
+
+    function normalizeName(s) {
+      return (s ?? "")
+        .toLowerCase()
+        .replace(/ł/g, "l")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[\s-]+/g, "-");
+    }
+
+    const setPolnoc = new Set(POLNOC.map(normalizeName));
+    const setPoludnie = new Set(POLUDNIE.map(normalizeName));
+
+    function groupForVoivodeship(name) {
+      const key = normalizeName(name);
+      if (setPolnoc.has(key)) return "POLNOC";
+      if (setPoludnie.has(key)) return "POLUDNIE";
+      return "UNKNOWN";
+    }
+
+    const map = L.map("map").setView([52.1, 19.4], 6);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18
+    }).addTo(map);
+
+    const GEOJSON_URL =
+      "https://raw.githubusercontent.com/andilabs/polska-wojewodztwa-geojson/master/polska-wojewodztwa.geojson";
+
+    function baseStyle() {
+      return {
+        color: getComputedStyle(document.documentElement).getPropertyValue("--stroke"),
+        weight: 1,
+        fillColor: "#ffffff",
+        fillOpacity: 0.9
+      };
+    }
+
+    function hoverStyle(feature) {
+      const name = feature.properties.name;
+      const group = groupForVoivodeship(name);
+
+      return {
+        weight: 2.5,
+        fillColor:
+          group === "POLNOC"
+            ? getComputedStyle(document.documentElement).getPropertyValue("--north")
+            : getComputedStyle(document.documentElement).getPropertyValue("--south"),
+        fillOpacity: 0.85
+      };
+    }
+
+    fetch(GEOJSON_URL)
+      .then(res => res.json())
+      .then(data => {
+        L.geoJSON(data, {
+          style: baseStyle,
+          onEachFeature: (feature, layer) => {
+            const name = feature.properties.name;
+            const group = groupForVoivodeship(name);
+
+            const tooltipHtml =
+              group === "POLNOC"
+                ? `
+                  <div class="tt-title">${name}</div>
+                  <div class="tt-line">tel. 790 292 986</div>
+                  <div class="tt-line">e-mail: i.hubner@julimex.pl</div>
+                  <div class="tt-line">Ilona Hubner</div>
+                `
+                : `
+                  <div class="tt-title">${name}</div>
+                  <div class="tt-line">tel. 790 292 984</div>
+                  <div class="tt-line">e-mail: k.fijalkowska@julimex.pl</div>
+                  <div class="tt-line">Katarzyna Fijałkowska</div>
+                `;
+
+            layer.bindTooltip(tooltipHtml, {
+              sticky: true,
+              direction: "top",
+              className: "custom-tooltip"
+            });
+
+            layer.on("mouseover", () => layer.setStyle(hoverStyle(feature)));
+            layer.on("mouseout", () => layer.setStyle(baseStyle()));
+          }
+        }).addTo(map);
+      });
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
