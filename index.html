@@ -123,7 +123,7 @@
     }
 
     .leaflet-tooltip.custom-tooltip .tt-title {
-      font-weight: 700; /* ✅ POGRUBIONA NAZWA WOJEWÓDZTWA */
+      font-weight: 700;
       margin-bottom: 6px;
       font-size: 13px;
     }
@@ -133,13 +133,13 @@
       line-height: 1.35;
       white-space: nowrap;
     }
-    /* Usuń obwódkę focus po kliknięciu na województwo (Leaflet/SVG) */
-.leaflet-container path:focus,
-.leaflet-container svg:focus,
-.leaflet-container .leaflet-interactive:focus {
-  outline: none !important;
-}
 
+    /* Usuń obwódkę focus po kliknięciu na województwo (Leaflet/SVG) */
+    .leaflet-container path:focus,
+    .leaflet-container svg:focus,
+    .leaflet-container .leaflet-interactive:focus {
+      outline: none !important;
+    }
   </style>
 </head>
 
@@ -171,10 +171,7 @@
       <li>e-mail: k.fijalkowska@julimex.pl</li>
       <li>Katarzyna Fijałkowska</li>
     </ul>
-    
-
   </div>
-
 
   <!-- LOGO -->
   <div class="logo-box">
@@ -187,12 +184,10 @@
       <strong>EXPORT</strong>
     </div>
     <ul class="contact-list">
-      
       <li>phone number: +48 730 707 705</li>
       <li>e-mail: export@julimex.pl</li>
       <li>Beata Stokowska</li>
     </ul>
-
   </div>
 
   <script>
@@ -206,12 +201,38 @@
       "swietokrzyskie","lubelskie","malopolskie","podkarpackie"
     ];
 
+    // ✅ Mapowanie nazw bez polskich znaków -> z polskimi znakami (do wyświetlania w tooltipie)
+    const VOIVODESHIP_LABELS = {
+      "dolnoslaskie": "Dolnośląskie",
+      "kujawsko-pomorskie": "Kujawsko-Pomorskie",
+      "lubelskie": "Lubelskie",
+      "lubuskie": "Lubuskie",
+      "lodzkie": "Łódzkie",
+      "malopolskie": "Małopolskie",
+      "mazowieckie": "Mazowieckie",
+      "opolskie": "Opolskie",
+      "podkarpackie": "Podkarpackie",
+      "podlaskie": "Podlaskie",
+      "pomorskie": "Pomorskie",
+      "slaskie": "Śląskie",
+      "swietokrzyskie": "Świętokrzyskie",
+      "warminsko-mazurskie": "Warmińsko-Mazurskie",
+      "wielkopolskie": "Wielkopolskie",
+      "zachodniopomorskie": "Zachodniopomorskie"
+    };
+
     function normalizeName(s) {
       return (s ?? "")
         .toLowerCase()
         .replace(/ł/g, "l")
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         .replace(/[\s-]+/g, "-");
+    }
+
+    // ✅ Nazwa do wyświetlenia (tooltip)
+    function displayName(rawName) {
+      const key = normalizeName(rawName);
+      return VOIVODESHIP_LABELS[key] ?? rawName;
     }
 
     const setPolnoc = new Set(POLNOC.map(normalizeName));
@@ -262,19 +283,20 @@
         L.geoJSON(data, {
           style: baseStyle,
           onEachFeature: (feature, layer) => {
-            const name = feature.properties.name;
-            const group = groupForVoivodeship(name);
+            const rawName = feature.properties.name;    // np. "lodzkie"
+            const prettyName = displayName(rawName);    // np. "Łódzkie"
+            const group = groupForVoivodeship(rawName);
 
             const tooltipHtml =
               group === "POLNOC"
                 ? `
-                  <div class="tt-title">${name}</div>
+                  <div class="tt-title">${prettyName}</div>
                   <div class="tt-line">tel. 790 292 986</div>
                   <div class="tt-line">e-mail: i.hubner@julimex.pl</div>
                   <div class="tt-line">Ilona Hubner</div>
                 `
                 : `
-                  <div class="tt-title">${name}</div>
+                  <div class="tt-title">${prettyName}</div>
                   <div class="tt-line">tel. 790 292 984</div>
                   <div class="tt-line">e-mail: k.fijalkowska@julimex.pl</div>
                   <div class="tt-line">Katarzyna Fijałkowska</div>
@@ -294,13 +316,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
